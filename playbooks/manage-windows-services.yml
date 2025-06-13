@@ -5,6 +5,8 @@
   vars:
     operation: "{{ service_operation | default('status') }}"  # status, start, stop, restart
     target_services: "{{ services_list | default([]) }}"
+    # Disable vault for this playbook - use AAP credentials instead
+    ansible_vault_password_file: null
     
   pre_tasks:
     - name: Validate operation parameter
