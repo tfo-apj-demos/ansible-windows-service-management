@@ -1,0 +1,25 @@
+---
+# Global variables for all hosts
+
+# Ansible behavior
+ansible_python_interpreter: auto_silent
+
+# Timeouts and retries
+default_timeout: 300
+max_retries: 3
+retry_delay: 10
+
+# Environment
+deployment_environment: "{{ env | default('dev') }}"
+datacenter: "{{ dc | default('dc1') }}"
+
+# Vault integration
+vault_server_url: "https://vault.example.com:8200"
+vault_namespace: "{{ vault_ns | default('') }}"
+
+# Common paths
+temp_directory: "C:\\Temp"
+log_directory: "C:\\Logs\\Ansible"
+
+# PowerShell execution policy
+powershell_execution_policy: "RemoteSigned"

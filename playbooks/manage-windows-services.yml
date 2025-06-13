@@ -1,0 +1,63 @@
+---
+- name: Comprehensive Windows Service Management
+  hosts: windows_servers
+  gather_facts: true
+  vars:
+    operation: "{{ service_operation | default('status') }}"  # status, start, stop, restart
+    target_services: "{{ services_list | default([]) }}"
+    
+  pre_tasks:
+    - name: Validate operation parameter
+      ansible.builtin.assert:
+        that:
+          - operation in ['status', 'start', 'stop', 'restart', 'reload']
+        fail_msg: "Invalid operation. Must be one of: status, start, stop, restart, reload"
+
+  tasks:
+    - name: Display current operation
+      ansible.builtin.debug:
+        msg: "Performing {{ operation }} operation on Windows services"
+
+    - name: Get all Windows services status (when no specific services defined)
+      ansible.windows.win_service_info:
+      register: all_services_info
+      when: target_services | length == 0
+
+    - name: Display all services summary
+      ansible.builtin.debug:
+        msg: "Found {{ all_services_info.services | length }} services on {{ inventory_hostname }}"
+      when: 
+        - target_services | length == 0
+        - operation == 'status'
+
+    - name: Get specific services status
+      ansible.windows.win_service_info:
+        name: "{{ target_services }}"
+      register: specific_services_info
+      when: target_services | length > 0
+
+    - name: Perform service operations
+      ansible.builtin.include_tasks:
+        file: tasks/service_operations.yml
+      vars:
+        services_to_process: "{{ target_services if target_services | length > 0 else (all_services_info.services | map(attribute='name') | list) }}"
+      when: operation != 'status'
+
+    - name: Generate service status report
+      ansible.builtin.template:
+        src: service_report.j2
+        dest: "{{ log_directory }}\\service_report_{{ ansible_date_time.epoch }}.txt"
+      vars:
+        services_data: "{{ specific_services_info.services if target_services | length > 0 else all_services_info.services }}"
+      when: 
+        - log_directory is defined
+        - operation == 'status'
+
+  post_tasks:
+    - name: Summary of operations performed
+      ansible.builtin.debug:
+        msg: 
+          - "Service management operation completed"
+          - "Operation: {{ operation }}"
+          - "Target host: {{ inventory_hostname }}"
+          - "Services processed: {{ target_services | length if target_services | length > 0 else 'all services' }}"

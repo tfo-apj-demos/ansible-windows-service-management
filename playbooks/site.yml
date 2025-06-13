@@ -1,0 +1,24 @@
+---
+# Main site playbook that orchestrates all Windows service management tasks
+- name: Windows Service Management Site Playbook
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display available playbooks
+      ansible.builtin.debug:
+        msg:
+          - "Available Windows Service Management Playbooks:"
+          - "1. rotate-service-passwords.yml - Rotate service account passwords using Vault"
+          - "2. manage-windows-services.yml - General Windows service management"
+          - ""
+          - "Usage examples:"
+          - "ansible-playbook playbooks/rotate-service-passwords.yml"
+          - "ansible-playbook playbooks/manage-windows-services.yml -e service_operation=status"
+          - "ansible-playbook playbooks/manage-windows-services.yml -e service_operation=restart -e services_list=['IIS','W3SVC']"
+
+# Import other playbooks as needed
+# - import_playbook: rotate-service-passwords.yml
+#   when: operation is defined and operation == "rotate_passwords"
+
+# - import_playbook: manage-windows-services.yml  
+#   when: operation is defined and operation == "manage_services"
