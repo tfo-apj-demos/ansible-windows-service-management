@@ -1,0 +1,75 @@
+---
+- name: Windows Service Management via SSH and PowerShell
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+  vars:
+    # SSH connection for Windows with OpenSSH and PowerShell
+    ansible_connection: ssh
+    ansible_shell_type: powershell
+    ansible_ssh_shell_type: powershell
+    operation: "{{ service_operation | default('status') }}"
+    target_services: "{{ services_list | default([]) }}"
+    
+  pre_tasks:
+    - name: Validate operation parameter
+      ansible.builtin.assert:
+        that:
+          - operation in ['status', 'start', 'stop', 'restart', 'info']
+        fail_msg: "Invalid operation. Must be one of: status, start, stop, restart, info"
+
+  tasks:
+    - name: Display current operation
+      ansible.builtin.debug:
+        msg: "Performing {{ operation }} operation on Windows services via SSH"
+
+    - name: Get all Windows services (when no specific services defined)
+      ansible.builtin.raw: |
+        Get-Service | ConvertTo-Json -Depth 3
+      register: all_services_raw
+      when: target_services | length == 0 and operation in ['status', 'info']
+
+    - name: Get specific services status
+      ansible.builtin.raw: |
+        Get-Service -Name {{ target_services | join(',') }} | ConvertTo-Json -Depth 3
+      register: specific_services_raw
+      when: target_services | length > 0
+
+    - name: Display services count (all services)
+      ansible.builtin.debug:
+        msg: "Retrieved information for all services on {{ inventory_hostname }}"
+      when: target_services | length == 0 and operation in ['status', 'info']
+
+    - name: Start specific services
+      ansible.builtin.raw: |
+        Start-Service -Name '{{ item }}'
+        Write-Host "Started service: {{ item }}"
+      loop: "{{ target_services }}"
+      when: operation == 'start' and target_services | length > 0
+
+    - name: Stop specific services
+      ansible.builtin.raw: |
+        Stop-Service -Name '{{ item }}'
+        Write-Host "Stopped service: {{ item }}"
+      loop: "{{ target_services }}"
+      when: operation == 'stop' and target_services | length > 0
+
+    - name: Restart specific services
+      ansible.builtin.raw: |
+        Restart-Service -Name '{{ item }}'
+        Write-Host "Restarted service: {{ item }}"
+      loop: "{{ target_services }}"
+      when: operation == 'restart' and target_services | length > 0
+
+    - name: Display specific services status
+      ansible.builtin.debug:
+        msg: "Service operation completed for: {{ target_services | join(', ') }}"
+      when: target_services | length > 0
+
+  post_tasks:
+    - name: Summary of operations performed
+      ansible.builtin.debug:
+        msg: 
+          - "Service management operation completed"
+          - "Operation: {{ operation }}"
+          - "Target host: {{ inventory_hostname }}"
+          - "Services processed: {{ target_services | length if target_services | length > 0 else 'all services' }}"

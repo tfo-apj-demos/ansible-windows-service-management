@@ -1,0 +1,19 @@
+# Sample Inventory for Windows Service Management via SSH
+# Replace with your actual Windows hosts
+
+[windows_servers]
+# Add your Windows servers here
+# Example:
+# win-server-01.domain.com
+# win-server-02.domain.com
+# 192.168.1.100
+
+[windows_servers:vars]
+# SSH connection settings for Windows with OpenSSH
+ansible_connection=ssh
+ansible_shell_type=powershell
+ansible_ssh_shell_type=powershell
+ansible_port=22
+# These will be overridden by AAP Machine Credentials
+ansible_user=administrator
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'

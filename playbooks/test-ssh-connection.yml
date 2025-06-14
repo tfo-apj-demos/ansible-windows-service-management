@@ -1,0 +1,36 @@
+---
+- name: Simple Windows SSH Connection Test
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+  vars:
+    # SSH connection for Windows with OpenSSH
+    ansible_connection: ssh
+    ansible_shell_type: powershell
+    ansible_ssh_shell_type: powershell
+    
+  tasks:
+    - name: Test basic connectivity
+      raw: echo "Hello World from {{ inventory_hostname }}"
+      register: hello_output
+      
+    - name: Display hello output
+      debug:
+        msg: "{{ hello_output.stdout_lines }}"
+        
+    - name: Get current date and time
+      raw: Get-Date
+      register: datetime_output
+      
+    - name: Display current date/time
+      debug:
+        msg: "{{ datetime_output.stdout_lines }}"
+        
+    - name: Test PowerShell command
+      raw: |
+        Write-Host "PowerShell is working on $env:COMPUTERNAME"
+        $PSVersionTable.PSVersion
+      register: ps_test
+      
+    - name: Display PowerShell test results
+      debug:
+        msg: "{{ ps_test.stdout_lines }}"

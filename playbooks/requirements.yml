@@ -1,0 +1,8 @@
+---
+collections:
+  - name: ansible.windows
+    version: ">=1.0.0"
+  - name: community.windows
+    version: ">=1.0.0"
+  - name: community.hashi_vault
+    version: ">=3.0.0"

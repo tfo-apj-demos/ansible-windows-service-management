@@ -1,12 +1,14 @@
 ---
 - name: Comprehensive Windows Service Management
-  hosts: windows_servers
-  gather_facts: true
+  hosts: "{{ target_hosts | default('windows_servers') }}"  # Allow override via extra vars
+  gather_facts: false  # Disable facts initially to avoid setup module issues
   vars:
+    # SSH connection for Windows with OpenSSH and PowerShell
+    ansible_connection: ssh
+    ansible_shell_type: powershell
+    ansible_ssh_shell_type: powershell
     operation: "{{ service_operation | default('status') }}"  # status, start, stop, restart
     target_services: "{{ services_list | default([]) }}"
-    # Disable vault for this playbook - use AAP credentials instead
-    ansible_vault_password_file: null
     
   pre_tasks:
     - name: Validate operation parameter

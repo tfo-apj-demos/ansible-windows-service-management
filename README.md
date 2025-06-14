@@ -1,53 +1,163 @@
 # Ansible Windows Service Management
 
-This repository contains Ansible playbooks and roles for managing Windows services, specifically for rotating service account passwords using HashiCorp Vault integration with Ansible Automation Platform 2.5.
+This repository contains Ansible playbooks and roles for managing Windows services via SSH using OpenSSH for Windows and PowerShell. Designed for use with Ansible Automation Platform (AAP) 2.5.
 
 ## Repository Structure
 
 ```
 ansible-windows-service-management/
 ├── ansible.cfg                    # Ansible configuration
-├── requirements.yml               # Ansible collections and roles
+├── collections/
+│   └── requirements.yml           # Ansible collections
 ├── inventory/                     # Inventory files
-│   ├── group_vars/               # Group variables
-│   ├── host_vars/                # Host-specific variables
-│   └── hosts.yml                 # Main inventory
+│   └── hosts                     # Sample inventory
 ├── playbooks/                    # Main playbooks
-│   ├── rotate-service-passwords.yml
-│   ├── manage-windows-services.yml
-│   └── site.yml
-├── roles/                        # Custom roles
-│   ├── windows_service_management/
-│   └── vault_credential_rotation/
-├── collections/                  # Local collections (if any)
-├── filter_plugins/              # Custom filters
-├── vars/                        # Variable files
-└── templates/                   # Jinja2 templates
+│   ├── test-ssh-connection.yml   # Basic connectivity test
+│   ├── manage-windows-services-ssh.yml  # SSH-based service management
+│   ├── rotate-service-passwords.yml     # Vault credential rotation
+│   ├── requirements.yml          # Playbook collections
+│   └── roles/                    # Custom roles
+│       ├── windows_service_management/
+│       └── vault_credential_rotation/
+└── .vault_password               # Demo vault password (dev only)
 ```
 
 ## Prerequisites
 
 - Ansible Automation Platform 2.5
-- Windows hosts with WinRM configured
-- HashiCorp Vault with LDAP secrets engine
-- Proper network connectivity between AAP and Windows hosts
+- Windows hosts with OpenSSH Server installed and configured
+- PowerShell 5.1+ on Windows hosts
+- Proper network connectivity between AAP and Windows hosts (port 22)
+- AAP Machine Credentials configured for SSH authentication
+
+## Windows OpenSSH Setup
+
+Ensure OpenSSH is installed and configured on your Windows servers:
+
+```powershell
+# Install OpenSSH Server (Windows 10/Server 2019+)
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+# Start and enable SSH service
+Start-Service sshd
+Set-Service -Name sshd -StartupType 'Automatic'
+
+# Configure PowerShell as default shell for SSH
+New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
+```
+
+## AAP Configuration
+
+### Machine Credentials
+1. Create a **Machine Credential** in AAP:
+   - **Credential Type**: Machine
+   - **Username**: Your Windows user (domain\user or user@domain.com)
+   - **Password**: User's password
+   - **Privilege Escalation**: Not typically needed for Windows SSH
+
+### Job Templates
+Create job templates with these settings:
+- **Playbook**: `playbooks/test-ssh-connection.yml` (for testing)
+- **Playbook**: `playbooks/manage-windows-services-ssh.yml` (for service management)
+- **Inventory**: Your Windows inventory
+- **Credentials**: Your Machine credential
+- **Extra Variables**: As needed (see examples below)
 
 ## Quick Start
 
-1. Configure your inventory in `inventory/hosts.yml`
-2. Set up group variables in `inventory/group_vars/windows_servers.yml`
-3. Configure Vault credentials in AAP
-4. Run the service password rotation playbook
+1. **Test Connectivity**: Run the test playbook first
+   - Job Template: "Test Windows SSH Connection"
+   - Playbook: `playbooks/test-ssh-connection.yml`
+   - Extra Variables: `target_hosts: your_host_or_group`
 
-## Usage
+2. **Manage Services**: Use the service management playbook
+   - Job Template: "Windows Service Management"
+   - Playbook: `playbooks/manage-windows-services-ssh.yml`
 
-### Rotate Service Account Passwords
+## Usage Examples
 
-```bash
-ansible-playbook playbooks/rotate-service-passwords.yml -i inventory/hosts.yml
+### Test Basic Connectivity
+```yaml
+# Extra Variables in AAP Job Template:
+target_hosts: "mssql-server-01"
 ```
 
-### Manage Windows Services
+### Check Service Status
+```yaml
+# Extra Variables:
+target_hosts: "windows_servers"
+service_operation: "status"
+services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
+```
+
+### Start Services
+```yaml
+# Extra Variables:
+target_hosts: "database_servers"
+service_operation: "start"
+services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
+```
+
+### Stop Services
+```yaml
+# Extra Variables:
+target_hosts: "web_servers"
+service_operation: "stop"
+services_list: ["IIS", "W3SVC"]
+```
+
+### Restart Services
+```yaml
+# Extra Variables:
+target_hosts: "all"
+service_operation: "restart"
+services_list: ["Spooler", "Themes"]
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **SSH Connection Failed**
+   - Verify OpenSSH is installed and running on Windows
+   - Check firewall allows port 22
+   - Verify AAP can reach the Windows host
+
+2. **PowerShell Errors**
+   - Ensure PowerShell is set as default SSH shell
+   - Check PowerShell execution policy
+   - Verify user has appropriate permissions
+
+3. **Service Management Errors**
+   - Ensure user has permission to manage services
+   - Check if services exist on target system
+   - Verify service names are correct (case-sensitive)
+
+### Testing Commands
+
+Test SSH connectivity manually:
+```bash
+ssh user@windows-host "Get-Service | Select-Object -First 5"
+```
+
+## Playbook Reference
+
+| Playbook | Purpose | Key Variables |
+|----------|---------|---------------|
+| `test-ssh-connection.yml` | Basic connectivity test | `target_hosts` |
+| `manage-windows-services-ssh.yml` | Service management | `service_operation`, `services_list` |
+| `rotate-service-passwords.yml` | Vault password rotation | Vault configuration |
+
+## Development
+
+For local development and testing:
+```bash
+# Install collections
+ansible-galaxy collection install -r collections/requirements.yml
+
+# Test connectivity
+ansible-playbook -i inventory/hosts playbooks/test-ssh-connection.yml --limit windows_servers
+```
 
 ```bash
 ansible-playbook playbooks/manage-windows-services.yml -i inventory/hosts.yml

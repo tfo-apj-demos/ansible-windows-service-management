@@ -1,0 +1,22 @@
+---
+- name: Test Windows Connection
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+  vars:
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_port: 5986
+    
+  tasks:
+    - name: Test Windows connectivity
+      ansible.windows.win_ping:
+      
+    - name: Get Windows version
+      ansible.windows.win_shell: |
+        Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion
+      register: windows_info
+      
+    - name: Display Windows info
+      debug:
+        var: windows_info.stdout_lines
