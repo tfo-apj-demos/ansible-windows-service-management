@@ -8,8 +8,7 @@
     fail_msg: "No dependent services defined! Please set 'dependent_services' variable."
 
 - name: Get current service status before credential rotation
-  ansible.builtin.raw: |
-    powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status | ConvertTo-Json"
+  ansible.builtin.raw: 'powershell.exe -Command "Get-Service -Name ''{{ item }}'' | Select-Object Name, Status | ConvertTo-Json"'
   loop: "{{ dependent_services }}"
   register: current_service_status
   changed_when: false
