@@ -32,8 +32,9 @@ ansible-windows-service-management/
 
 ## Windows OpenSSH Setup
 
-Ensure OpenSSH is installed and configured on your Windows servers:
+Ensure OpenSSH is installed and configured on your Windows servers. This can be done through Group Policy, PowerShell DSC, or manually on each server:
 
+**PowerShell commands for manual setup:**
 ```powershell
 # Install OpenSSH Server (Windows 10/Server 2019+)
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
@@ -135,10 +136,9 @@ services_list: ["Spooler", "Themes"]
 
 ### Testing Commands
 
-Test SSH connectivity manually:
-```bash
-ssh user@windows-host "Get-Service | Select-Object -First 5"
-```
+Test SSH connectivity from AAP by running the test playbook:
+- Use the "Test Windows SSH Connection" job template
+- Check job output for connectivity confirmation
 
 ## Playbook Reference
 
@@ -148,16 +148,25 @@ ssh user@windows-host "Get-Service | Select-Object -First 5"
 | `manage-windows-services-ssh.yml` | Service management | `service_operation`, `services_list` |
 | `rotate-service-passwords.yml` | Vault password rotation | Vault configuration |
 
-## Development
+## AAP Job Template Examples
 
-For local development and testing:
-```bash
-# Install collections
-ansible-galaxy collection install -r collections/requirements.yml
+### Basic Connectivity Test
+- **Name**: Test Windows SSH Connection
+- **Job Type**: Run
+- **Inventory**: Your Windows Inventory
+- **Project**: This repository
+- **Playbook**: `playbooks/test-ssh-connection.yml`
+- **Credentials**: Your Windows Machine Credential
+- **Extra Variables**: `target_hosts: "your_host_group"`
 
-# Test connectivity
-ansible-playbook -i inventory/hosts playbooks/test-ssh-connection.yml --limit windows_servers
-```
+### Service Management
+- **Name**: Windows Service Management
+- **Job Type**: Run
+- **Inventory**: Your Windows Inventory
+- **Project**: This repository
+- **Playbook**: `playbooks/manage-windows-services-ssh.yml`
+- **Credentials**: Your Windows Machine Credential
+- **Variables on Prompt**: Enable to allow runtime service selection
 
 ```bash
 ansible-playbook playbooks/manage-windows-services.yml -i inventory/hosts.yml
