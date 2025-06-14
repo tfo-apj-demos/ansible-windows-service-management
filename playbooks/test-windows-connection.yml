@@ -3,37 +3,27 @@
   hosts: windows_servers
   gather_facts: false
   vars:
-    # SSH connection for Windows with OpenSSH
+    # SSH connection for Windows with explicit shell configuration
     ansible_connection: ssh
-    ansible_shell_type: powershell
-    ansible_ssh_shell_type: powershell
+    ansible_shell_type: cmd
     ansible_port: 22
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     
   tasks:
-    - name: Test basic connectivity with hostname command
+    - name: Test basic connectivity with simple command
+      ansible.builtin.raw: echo hello
+      register: hello_output
+      changed_when: false
+      
+    - name: Display hello output
+      ansible.builtin.debug:
+        msg: "Output: {{ hello_output.stdout | default('no output') }}"
+        
+    - name: Test hostname command
       ansible.builtin.raw: hostname
       register: hostname_output
       changed_when: false
       
-    - name: Display hostname output
+    - name: Display hostname
       ansible.builtin.debug:
-        msg: "Hostname: {{ hostname_output.stdout_lines }}"
-        
-    - name: Test PowerShell Get-Date command
-      ansible.builtin.raw: powershell.exe -Command "Get-Date"
-      register: datetime_output
-      changed_when: false
-      
-    - name: Display current date/time
-      ansible.builtin.debug:
-        msg: "{{ datetime_output.stdout_lines }}"
-        
-    - name: Test PowerShell environment variable
-      ansible.builtin.raw: powershell.exe -Command "$env:COMPUTERNAME"
-      register: computer_name
-      changed_when: false
-      
-    - name: Display computer name
-      ansible.builtin.debug:
-        msg: "Computer Name: {{ computer_name.stdout_lines }}"
+        msg: "Hostname: {{ hostname_output.stdout | default('no output') }}"
