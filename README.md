@@ -9,17 +9,17 @@ ansible-windows-service-management/
 ├── ansible.cfg                    # Ansible configuration
 ├── collections/
 │   └── requirements.yml           # Ansible collections
-├── inventory/                     # Inventory files
-│   └── hosts                     # Sample inventory
+├── inventory/                     # Sample inventory
+│   └── hosts                     # Sample inventory file
 ├── playbooks/                    # Main playbooks
-│   ├── test-ssh-connection.yml   # Basic connectivity test
-│   ├── manage-windows-services-ssh.yml  # SSH-based service management
-│   ├── rotate-service-passwords.yml     # Vault credential rotation
+│   ├── test-connectivity.yml     # SSH connectivity test
+│   ├── manage-services.yml       # Windows service management
+│   ├── rotate-passwords.yml      # Vault password rotation
 │   ├── requirements.yml          # Playbook collections
 │   └── roles/                    # Custom roles
 │       ├── windows_service_management/
 │       └── vault_credential_rotation/
-└── .vault_password               # Demo vault password (dev only)
+└── aap-host-variables-example.yml # Example AAP host variables
 ```
 
 ## Prerequisites
@@ -139,29 +139,48 @@ Test SSH connectivity from AAP by running the test playbook:
 
 | Playbook | Purpose | Key Variables |
 |----------|---------|---------------|
-| `test-ssh-connection.yml` | Basic connectivity test | `target_hosts` |
-| `manage-windows-services-ssh.yml` | Service management | `service_operation`, `services_list` |
-| `rotate-service-passwords.yml` | Vault password rotation | Vault configuration |
+| `test-connectivity.yml` | Basic SSH connectivity test | None required |
+| `manage-services.yml` | Windows service management | `service_operation`, `services_list` |
+| `rotate-passwords.yml` | Vault password rotation | `vault_url`, `vault_token`, `service_account` |
 
 ## AAP Job Template Examples
 
-### Basic Connectivity Test
+### Test SSH Connectivity
 - **Name**: Test Windows SSH Connection
 - **Job Type**: Run
 - **Inventory**: Your Windows Inventory
 - **Project**: This repository
-- **Playbook**: `playbooks/test-ssh-connection.yml`
+- **Playbook**: `playbooks/test-connectivity.yml`
 - **Credentials**: Your Windows Machine Credential
-- **Extra Variables**: None needed (targets windows_servers group)
+- **Extra Variables**: None needed
 
-### Service Management
+### Manage Windows Services
 - **Name**: Windows Service Management
 - **Job Type**: Run
 - **Inventory**: Your Windows Inventory
 - **Project**: This repository
-- **Playbook**: `playbooks/manage-windows-services-ssh.yml`
+- **Playbook**: `playbooks/manage-services.yml`
 - **Credentials**: Your Windows Machine Credential
 - **Variables on Prompt**: Enable to allow runtime service selection
+- **Extra Variables**:
+  ```yaml
+  service_operation: "status"  # status, start, stop, restart
+  services_list: ["DemoHelloWorldService"]  # Optional - defaults to DemoHelloWorldService
+  ```
+
+### Rotate Service Passwords
+- **Name**: Rotate Service Account Passwords
+- **Job Type**: Run
+- **Inventory**: Your Windows Inventory
+- **Project**: This repository
+- **Playbook**: `playbooks/rotate-passwords.yml`
+- **Credentials**: Your Windows Machine Credential + Vault Credential
+- **Extra Variables**:
+  ```yaml
+  vault_url: "https://your-vault-server:8200"
+  service_account: "hashicorp.local\\svc-demo"
+  services_to_restart: ["DemoHelloWorldService"]
+  ```
 
 ```bash
 ansible-playbook playbooks/manage-windows-services.yml -i inventory/hosts.yml
