@@ -1,5 +1,5 @@
 ---
-- name: Windows Service Management via SSH and CMD/PowerShell
+- name: Comprehensive Windows Service Management
   hosts: windows_servers
   gather_facts: false
   vars:
@@ -44,21 +44,18 @@
       ansible.builtin.raw: |
         powershell.exe -Command "Start-Service -Name '{{ item }}'; Write-Host 'Started service: {{ item }}'"
       loop: "{{ target_services }}"
-      register: start_results
       when: operation == 'start'
 
     - name: Stop services
       ansible.builtin.raw: |
         powershell.exe -Command "Stop-Service -Name '{{ item }}' -Force; Write-Host 'Stopped service: {{ item }}'"
       loop: "{{ target_services }}"
-      register: stop_results
       when: operation == 'stop'
 
     - name: Restart services
       ansible.builtin.raw: |
         powershell.exe -Command "Restart-Service -Name '{{ item }}'; Write-Host 'Restarted service: {{ item }}'"
       loop: "{{ target_services }}"
-      register: restart_results
       when: operation == 'restart'
 
     - name: Verify service status after operation
