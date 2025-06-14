@@ -28,15 +28,20 @@
   when: item.stdout is defined
 
 - name: Update service account credentials using NSSM
-  ansible.builtin.raw: |
+  ansible.builtin.raw: >
     powershell.exe -Command "
     $NSSMPath = 'C:\nssm\nssm.exe';
+    $ServiceName = '{{ item }}';
+    $ServiceAccount = '{{ service_account }}';
+    $ServicePassword = @'
+    {{ current_password }}
+    '@;
     if (Test-Path $NSSMPath) {
-      Write-Host 'Updating NSSM service {{ item }} with current Vault credentials';
-      & $NSSMPath set '{{ item }}' ObjectName '{{ service_account }}' '{{ current_password }}';
-      Write-Host 'Successfully updated NSSM service {{ item }} credentials'
+      Write-Host \"Updating NSSM service $ServiceName with current Vault credentials\";
+      & $NSSMPath set $ServiceName ObjectName $ServiceAccount $ServicePassword;
+      Write-Host \"Successfully updated NSSM service $ServiceName credentials\"
     } else {
-      Write-Host 'NSSM not found at C:\nssm\nssm.exe, skipping service {{ item }}'
+      Write-Host \"NSSM not found at C:\nssm\nssm.exe, skipping service $ServiceName\"
     }
     "
   loop: "{{ dependent_services }}"
