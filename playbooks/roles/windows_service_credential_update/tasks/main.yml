@@ -30,22 +30,23 @@
   loop: "{{ pre_rotation_status.results }}"
   when: item.stdout is defined
 
-- name: Update service account credentials using NSSM
-  ansible.builtin.raw: >-
-    powershell.exe -Command
-    "$ServiceName = '{{ item }}';
-    $ServiceAccount = '{{ service_account }}';
-    $Password = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{{ current_password | b64encode }}'));
+- name: Create PowerShell script for NSSM update
+  ansible.builtin.raw: |
+    $script = @"
+    `$ServiceName = '{{ item }}'
+    `$ServiceAccount = '{{ service_account }}'
+    `$Password = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{{ current_password | b64encode }}'))
     if (Test-Path 'C:\nssm\nssm.exe') {
-      Write-Host 'Updating NSSM service' $ServiceName 'with current Vault credentials';
-      & 'C:\nssm\nssm.exe' set $ServiceName ObjectName $ServiceAccount $Password;
-      Write-Host 'Successfully updated NSSM service' $ServiceName 'credentials'
+      Write-Host "Updating NSSM service `$ServiceName with current Vault credentials"
+      & 'C:\nssm\nssm.exe' set `$ServiceName ObjectName `$ServiceAccount `$Password
+      Write-Host "Successfully updated NSSM service `$ServiceName credentials"
     } else {
-      Write-Host 'NSSM not found, skipping service' $ServiceName
-    }"
+      Write-Host "NSSM not found, skipping service `$ServiceName"
+    }
+    "@
+    powershell.exe -Command $script
   loop: "{{ dependent_services }}"
   register: nssm_update_result
-  changed_when: true
   changed_when: true
 
 - name: Display NSSM update results
@@ -81,15 +82,14 @@
 
 - name: Display post-rotation service status in readable format
   ansible.builtin.debug:
-    msg: |
-      After credential update:
-      Service: {{ item.item }}
-      Status: {{ service_status_text }}
-      Host: {{ inventory_hostname }}
+    msg:
+      - "After credential update:"
+      - "Service: {{ item.item }}"
+      - "Status: {{ status_text }}"
+      - "Host: {{ inventory_hostname }}"
   vars:
-    service_status_code: "{{ (item.stdout | from_json).Status }}"
-    service_status_text: >-
-      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
+    status_value: "{{ (item.stdout | from_json).Status | int }}"
+    status_text: "{{ 'Running' if status_value == 4 else 'Stopped' if status_value == 1 else 'Unknown (' + (status_value | string) + ')' }}"
   loop: "{{ post_rotation_status.results }}"
   when: item.stdout is defined
 
