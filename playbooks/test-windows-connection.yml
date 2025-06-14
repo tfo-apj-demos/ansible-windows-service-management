@@ -1,22 +1,30 @@
 ---
-- name: Test Windows Connection
-  hosts: "{{ target_hosts | default('all') }}"
+- name: Test Windows Connection via SSH
+  hosts: windows_servers
   gather_facts: false
   vars:
-    ansible_connection: winrm
-    ansible_winrm_transport: ntlm
-    ansible_winrm_server_cert_validation: ignore
-    ansible_winrm_port: 5986
+    # SSH connection for Windows with OpenSSH
+    ansible_connection: ssh
+    ansible_shell_type: powershell
+    ansible_ssh_shell_type: powershell
+    ansible_port: 22
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     
   tasks:
-    - name: Test Windows connectivity
-      ansible.windows.win_ping:
+    - name: Test basic connectivity with raw command
+      ansible.builtin.raw: echo "Hello World from {{ inventory_hostname }}"
+      register: hello_output
+      changed_when: false
       
-    - name: Get Windows version
-      ansible.windows.win_shell: |
-        Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion
-      register: windows_info
+    - name: Display hello output
+      ansible.builtin.debug:
+        msg: "{{ hello_output.stdout_lines }}"
+        
+    - name: Get current date and time
+      ansible.builtin.raw: Get-Date
+      register: datetime_output
+      changed_when: false
       
-    - name: Display Windows info
-      debug:
-        var: windows_info.stdout_lines
+    - name: Display current date/time
+      ansible.builtin.debug:
+        msg: "{{ datetime_output.stdout_lines }}"

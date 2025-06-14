@@ -1,36 +1,48 @@
 ---
 - name: Simple Windows SSH Connection Test
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: windows_servers  # Direct group targeting instead of variable
   gather_facts: false
   vars:
-    # SSH connection for Windows with OpenSSH
+    # Force SSH connection for Windows with OpenSSH - override any inventory settings
     ansible_connection: ssh
     ansible_shell_type: powershell
     ansible_ssh_shell_type: powershell
+    ansible_port: 22
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     
   tasks:
-    - name: Test basic connectivity
-      raw: echo "Hello World from {{ inventory_hostname }}"
+    - name: Test basic connectivity with raw command
+      ansible.builtin.raw: echo "Hello World from {{ inventory_hostname }}"
       register: hello_output
+      changed_when: false
       
     - name: Display hello output
-      debug:
+      ansible.builtin.debug:
         msg: "{{ hello_output.stdout_lines }}"
         
     - name: Get current date and time
-      raw: Get-Date
+      ansible.builtin.raw: Get-Date
       register: datetime_output
+      changed_when: false
       
     - name: Display current date/time
-      debug:
+      ansible.builtin.debug:
         msg: "{{ datetime_output.stdout_lines }}"
         
     - name: Test PowerShell command
-      raw: |
+      ansible.builtin.raw: |
         Write-Host "PowerShell is working on $env:COMPUTERNAME"
         $PSVersionTable.PSVersion
       register: ps_test
+      changed_when: false
       
     - name: Display PowerShell test results
-      debug:
+      ansible.builtin.debug:
         msg: "{{ ps_test.stdout_lines }}"
+        
+    - name: Verify SSH connection details
+      ansible.builtin.debug:
+        msg: 
+          - "Successfully connected via SSH to {{ inventory_hostname }}"
+          - "Connection type: {{ ansible_connection }}"
+          - "Shell type: {{ ansible_shell_type }}"

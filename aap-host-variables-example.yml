@@ -1,0 +1,9 @@
+# AAP Host Variables for mssql-server-01
+# Add these in AAP UI: Resources -> Inventories -> Your Inventory -> Hosts -> mssql-server-01 -> Edit
+
+ansible_host: mssql-server-01.hashicorp.local
+ansible_connection: ssh
+ansible_shell_type: powershell
+ansible_ssh_shell_type: powershell
+ansible_port: 22
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

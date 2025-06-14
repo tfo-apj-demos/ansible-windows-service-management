@@ -1,6 +1,6 @@
 ---
 - name: Windows Service Management via SSH and PowerShell
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: windows_servers  # Direct group targeting
   gather_facts: false
   vars:
     # SSH connection for Windows with OpenSSH and PowerShell

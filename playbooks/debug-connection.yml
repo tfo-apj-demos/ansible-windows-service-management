@@ -1,0 +1,23 @@
+---
+- name: Debug Connection Settings
+  hosts: windows_servers  # Direct group targeting
+  gather_facts: false
+  
+  tasks:
+    - name: Display connection variables
+      ansible.builtin.debug:
+        msg:
+          - "ansible_host: {{ ansible_host | default('not set') }}"
+          - "ansible_connection: {{ ansible_connection | default('not set') }}"
+          - "ansible_port: {{ ansible_port | default('not set') }}"
+          - "ansible_shell_type: {{ ansible_shell_type | default('not set') }}"
+          - "ansible_user: {{ ansible_user | default('not set') }}"
+          - "inventory_hostname: {{ inventory_hostname }}"
+      
+    - name: Test raw SSH connection
+      ansible.builtin.raw: "hostname"
+      register: hostname_result
+      
+    - name: Show hostname result
+      ansible.builtin.debug:
+        var: hostname_result

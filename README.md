@@ -79,14 +79,12 @@ Create job templates with these settings:
 
 ### Test Basic Connectivity
 ```yaml
-# Extra Variables in AAP Job Template:
-target_hosts: "mssql-server-01"
+# No extra variables needed - targets windows_servers group directly
 ```
 
 ### Check Service Status
 ```yaml
 # Extra Variables:
-target_hosts: "windows_servers"
 service_operation: "status"
 services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
 ```
@@ -94,7 +92,6 @@ services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
 ### Start Services
 ```yaml
 # Extra Variables:
-target_hosts: "database_servers"
 service_operation: "start"
 services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
 ```
@@ -102,7 +99,6 @@ services_list: ["MSSQLSERVER", "SQLSERVERAGENT"]
 ### Stop Services
 ```yaml
 # Extra Variables:
-target_hosts: "web_servers"
 service_operation: "stop"
 services_list: ["IIS", "W3SVC"]
 ```
@@ -110,7 +106,6 @@ services_list: ["IIS", "W3SVC"]
 ### Restart Services
 ```yaml
 # Extra Variables:
-target_hosts: "all"
 service_operation: "restart"
 services_list: ["Spooler", "Themes"]
 ```
@@ -157,7 +152,7 @@ Test SSH connectivity from AAP by running the test playbook:
 - **Project**: This repository
 - **Playbook**: `playbooks/test-ssh-connection.yml`
 - **Credentials**: Your Windows Machine Credential
-- **Extra Variables**: `target_hosts: "your_host_group"`
+- **Extra Variables**: None needed (targets windows_servers group)
 
 ### Service Management
 - **Name**: Windows Service Management
