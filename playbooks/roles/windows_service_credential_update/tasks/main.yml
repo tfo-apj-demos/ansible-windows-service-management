@@ -28,8 +28,8 @@
   vars:
     status_raw: "{{ (item.stdout | from_json).Status }}"
     status_text: >-
-      {% if status_raw == 4 %}Running
-      {% elif status_raw == 1 %}Stopped
+      {% if status_raw | int == 4 %}Running
+      {% elif status_raw | int == 1 %}Stopped
       {% else %}Other ({{ status_raw }})
       {% endif %}
   loop: "{{ pre_rotation_status.results }}"
@@ -65,7 +65,7 @@
     "@
     powershell.exe -Command $script
   vars:
-    service_account_full: "{{ service_account if ('\\' in service_account or '@' in service_account) else 'hashicorp.local\\' + service_account }}"
+    service_account_full: "{{ service_account if ('\\\\' in service_account or '@' in service_account) else 'hashicorp.local\\\\' + service_account }}"
   loop: "{{ dependent_services }}"
   register: nssm_update_result
   changed_when: true
@@ -109,8 +109,12 @@
       - "Status: {{ status_display }}"
       - "Host: {{ inventory_hostname }}"
   vars:
-    status_int: "{{ (item.stdout | from_json).Status | int }}"
-    status_display: "{{ 'Running' if status_int == 4 else 'Stopped' if status_int == 1 else 'Unknown (' + (status_int | string) + ')' }}"
+    status_int: "{{ (item.stdout | from_json).Status }}"
+    status_display: >-
+      {% if status_int | int == 4 %}Running
+      {% elif status_int | int == 1 %}Stopped
+      {% else %}Other ({{ status_int }})
+      {% endif %}
   loop: "{{ post_rotation_status.results }}"
   when: item.stdout is defined
 
