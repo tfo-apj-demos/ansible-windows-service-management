@@ -31,9 +31,12 @@
       when: operation in ['status', 'info']
       changed_when: false
 
-    - name: Display service status
+    - name: Display service status in readable format
       ansible.builtin.debug:
-        msg: "Service {{ item.item }}: {{ (item.stdout | from_json).Status }} (StartType: {{ (item.stdout | from_json).StartType }})"
+        msg: |
+          Service: {{ item.item }}
+          Status: {{ 'Running' if (item.stdout | from_json).Status == 4 else 'Stopped' if (item.stdout | from_json).Status == 1 else 'Unknown (' + ((item.stdout | from_json).Status | string) + ')' }}
+          Start Type: {{ 'Automatic' if (item.stdout | from_json).StartType == 2 else 'Manual' if (item.stdout | from_json).StartType == 3 else 'Disabled' if (item.stdout | from_json).StartType == 4 else 'Unknown (' + ((item.stdout | from_json).StartType | string) + ')' }}
       loop: "{{ service_status_results.results }}"
       when: 
         - operation in ['status', 'info']
@@ -42,21 +45,42 @@
 
     - name: Start services
       ansible.builtin.raw: |
-        powershell.exe -Command "Start-Service -Name '{{ item }}'; Write-Host 'Started service: {{ item }}'"
+        powershell.exe -Command "Start-Service -Name '{{ item }}'; Write-Host 'Successfully started service: {{ item }}'"
       loop: "{{ target_services }}"
+      register: start_results
       when: operation == 'start'
+
+    - name: Display start results
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ start_results.results }}"
+      when: operation == 'start' and start_results is defined
 
     - name: Stop services
       ansible.builtin.raw: |
-        powershell.exe -Command "Stop-Service -Name '{{ item }}' -Force; Write-Host 'Stopped service: {{ item }}'"
+        powershell.exe -Command "Stop-Service -Name '{{ item }}' -Force; Write-Host 'Successfully stopped service: {{ item }}'"
       loop: "{{ target_services }}"
+      register: stop_results
       when: operation == 'stop'
+
+    - name: Display stop results
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ stop_results.results }}"
+      when: operation == 'stop' and stop_results is defined
 
     - name: Restart services
       ansible.builtin.raw: |
-        powershell.exe -Command "Restart-Service -Name '{{ item }}'; Write-Host 'Restarted service: {{ item }}'"
+        powershell.exe -Command "Restart-Service -Name '{{ item }}'; Write-Host 'Successfully restarted service: {{ item }}'"
       loop: "{{ target_services }}"
+      register: restart_results
       when: operation == 'restart'
+
+    - name: Display restart results
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ restart_results.results }}"
+      when: operation == 'restart' and restart_results is defined
 
     - name: Verify service status after operation
       ansible.builtin.raw: |
@@ -66,9 +90,12 @@
       when: operation in ['start', 'stop', 'restart']
       changed_when: false
 
-    - name: Display post-operation status
+    - name: Display post-operation status in readable format
       ansible.builtin.debug:
-        msg: "After {{ operation }}: {{ item.item }} is {{ (item.stdout | from_json).Status }}"
+        msg: |
+          After {{ operation }}: 
+          Service: {{ item.item }}
+          Status: {{ 'Running' if (item.stdout | from_json).Status == 4 else 'Stopped' if (item.stdout | from_json).Status == 1 else 'Unknown (' + ((item.stdout | from_json).Status | string) + ')' }}
       loop: "{{ post_operation_status.results }}"
       when: 
         - operation in ['start', 'stop', 'restart']
