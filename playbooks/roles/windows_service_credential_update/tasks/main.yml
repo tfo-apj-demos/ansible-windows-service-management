@@ -30,21 +30,37 @@
   loop: "{{ pre_rotation_status.results }}"
   when: item.stdout is defined
 
+- name: Debug credential values before NSSM update
+  ansible.builtin.debug:
+    msg:
+      - "Service: {{ item }}"
+      - "Service Account: {{ service_account }}"
+      - "Password Length: {{ current_password | length }}"
+      - "Domain format check: {{ service_account if '\\' in service_account or '@' in service_account else 'MISSING DOMAIN FORMAT' }}"
+  loop: "{{ dependent_services }}"
+
 - name: Create PowerShell script for NSSM update
   ansible.builtin.raw: |
     $script = @"
     `$ServiceName = '{{ item }}'
-    `$ServiceAccount = '{{ service_account }}'
+    `$ServiceAccount = '{{ service_account_full }}'
     `$Password = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{{ current_password | b64encode }}'))
+    Write-Host "Debug: Service=`$ServiceName, Account=`$ServiceAccount, PasswordLength=" `$Password.Length
     if (Test-Path 'C:\nssm\nssm.exe') {
       Write-Host "Updating NSSM service `$ServiceName with current Vault credentials"
       & 'C:\nssm\nssm.exe' set `$ServiceName ObjectName `$ServiceAccount `$Password
-      Write-Host "Successfully updated NSSM service `$ServiceName credentials"
+      if (`$LASTEXITCODE -eq 0) {
+        Write-Host "Successfully updated NSSM service `$ServiceName credentials"
+      } else {
+        Write-Host "NSSM update failed with exit code `$LASTEXITCODE"
+      }
     } else {
       Write-Host "NSSM not found, skipping service `$ServiceName"
     }
     "@
     powershell.exe -Command $script
+  vars:
+    service_account_full: "{{ service_account if ('\\' in service_account or '@' in service_account) else 'hashicorp.local\\' + service_account }}"
   loop: "{{ dependent_services }}"
   register: nssm_update_result
   changed_when: true
@@ -85,11 +101,11 @@
     msg:
       - "After credential update:"
       - "Service: {{ item.item }}"
-      - "Status: {{ status_text }}"
+      - "Status: {{ status_display }}"
       - "Host: {{ inventory_hostname }}"
   vars:
-    status_value: "{{ (item.stdout | from_json).Status | int }}"
-    status_text: "{{ 'Running' if status_value == 4 else 'Stopped' if status_value == 1 else 'Unknown (' + (status_value | string) + ')' }}"
+    status_int: "{{ (item.stdout | from_json).Status | int }}"
+    status_display: "{{ 'Running' if status_int == 4 else 'Stopped' if status_int == 1 else 'Unknown (' + (status_int | string) + ')' }}"
   loop: "{{ post_rotation_status.results }}"
   when: item.stdout is defined
 
