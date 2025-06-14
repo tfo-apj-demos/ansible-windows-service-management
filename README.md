@@ -174,13 +174,38 @@ Test SSH connectivity from AAP by running the test playbook:
 - **Inventory**: Your Windows Inventory
 - **Project**: This repository
 - **Playbook**: `playbooks/rotate-passwords.yml`
-- **Credentials**: Your Windows Machine Credential + Vault Credential
+- **Credentials**: Your Windows Machine Credential + Vault Credential (AppRole)
 - **Extra Variables**:
   ```yaml
-  vault_url: "https://your-vault-server:8200"
+  vault_url: "https://vault.hashicorp.local:8200"
   service_account: "hashicorp.local\\svc-demo"
   services_to_restart: ["DemoHelloWorldService"]
+  vault_static_role_name: "svc_demo"  # Your Vault LDAP static role
   ```
+
+## Vault Integration
+
+This playbook integrates with your Vault LDAP static role configuration:
+
+```hcl
+resource "vault_ldap_secret_backend_static_role" "svc_demo" {
+  mount           = vault_ldap_secret_backend.this.path
+  role_name       = "svc_demo"
+  username        = "svc-demo"
+  dn              = "CN=svc-demo,OU=Vault Managed Accounts,DC=hashicorp,DC=local"
+  rotation_period = 300  # 5 minutes
+}
+```
+
+### Required AAP Credentials
+
+1. **Machine Credential** (for Windows SSH):
+   - Username: `HASHICORP\Administrator`
+   - Password: Your Windows admin password
+
+2. **Vault Credential** (Custom credential type for AppRole):
+   - `role_id`: Your Vault AppRole role ID
+   - `secret_id`: Your Vault AppRole secret ID
 
 ```bash
 ansible-playbook playbooks/manage-windows-services.yml -i inventory/hosts.yml
