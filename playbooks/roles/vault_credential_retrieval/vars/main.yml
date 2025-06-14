@@ -1,0 +1,7 @@
+---
+# Default variables for vault_credential_retrieval role
+
+# Vault configuration
+vault_addr: "https://vault.hashicorp.local:8200"
+vault_ldap_mount: "ldap"
+vault_static_role: "svc_demo"

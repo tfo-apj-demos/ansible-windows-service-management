@@ -1,0 +1,7 @@
+---
+# Default variables for windows_service_credential_update role
+
+# Service configuration
+windows_service_credential_update_service_account: "hashicorp.local\\svc-demo"
+windows_service_credential_update_dependent_services: 
+  - "DemoHelloWorldService"

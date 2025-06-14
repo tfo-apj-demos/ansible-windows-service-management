@@ -1,0 +1,33 @@
+# roles/windows_service_status/tasks/main.yml
+---
+- name: Ensure dependent services list is defined
+  ansible.builtin.assert:
+    that:
+      - dependent_services is defined
+      - dependent_services | length > 0
+    fail_msg: "No dependent services defined! Please set 'dependent_services' variable."
+
+- name: Get current service status before credential rotation
+  ansible.builtin.raw: |
+    powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status | ConvertTo-Json"
+  loop: "{{ dependent_services }}"
+  register: current_service_status
+  changed_when: false
+
+- name: Display current service status in readable format
+  ansible.builtin.debug:
+    msg: |
+      Current Status Check:
+      Service: {{ item.item }}
+      Status: {{ service_status_text }}
+      Host: {{ inventory_hostname }}
+  vars:
+    service_status_code: "{{ (item.stdout | from_json).Status }}"
+    service_status_text: >-
+      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
+  loop: "{{ current_service_status.results }}"
+  when: item.stdout is defined
+
+- name: Store service status facts for later use
+  ansible.builtin.set_fact:
+    service_status_before_rotation: "{{ current_service_status.results }}"

@@ -1,0 +1,122 @@
+---
+# roles/windows_service_credential_update/tasks/main.yml
+
+- name: Ensure required variables are defined
+  ansible.builtin.assert:
+    that:
+      - dependent_services is defined
+      - dependent_services | length > 0
+      - service_account is defined
+      - current_password is defined
+    fail_msg: "Required variables not defined: dependent_services, service_account, current_password"
+
+- name: Check current service status before password rotation
+  ansible.builtin.raw: |
+    powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status | ConvertTo-Json"
+  loop: "{{ dependent_services }}"
+  register: pre_rotation_status
+  changed_when: false
+
+- name: Display pre-rotation service status in readable format
+  ansible.builtin.debug:
+    msg: |
+      Before credential rotation:
+      Service: {{ item.item }}
+      Status: {{ service_status_text }}
+      Host: {{ inventory_hostname }}
+  vars:
+    service_status_code: "{{ (item.stdout | from_json).Status }}"
+    service_status_text: >-
+      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
+  loop: "{{ pre_rotation_status.results }}"
+  when: item.stdout is defined
+
+- name: Update service account credentials using NSSM
+  ansible.builtin.raw: |
+    powershell.exe -Command "
+    $NSSMPath = 'C:\nssm\nssm.exe';
+    if (Test-Path $NSSMPath) {
+      Write-Host 'Updating NSSM service {{ item }} with current Vault credentials';
+      & $NSSMPath set '{{ item }}' ObjectName '{{ service_account }}' '{{ current_password }}';
+      Write-Host 'Successfully updated NSSM service {{ item }} credentials'
+    } else {
+      Write-Host 'NSSM not found at C:\nssm\nssm.exe, skipping service {{ item }}'
+    }
+    "
+  loop: "{{ dependent_services }}"
+  register: nssm_update_result
+  no_log: true
+  changed_when: true
+
+- name: Display NSSM update results
+  ansible.builtin.debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ nssm_update_result.results }}"
+  when: nssm_update_result is defined
+
+- name: Restart dependent services to apply new credentials
+  ansible.builtin.raw: |
+    powershell.exe -Command "
+    Write-Host 'Restarting service: {{ item }}';
+    Restart-Service -Name '{{ item }}' -Force;
+    Start-Sleep -Seconds 3;
+    Write-Host 'Service {{ item }} restart completed'
+    "
+  loop: "{{ dependent_services }}"
+  register: restart_results
+  changed_when: true
+
+- name: Display restart results
+  ansible.builtin.debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ restart_results.results }}"
+  when: restart_results is defined
+
+- name: Verify service status after credential update
+  ansible.builtin.raw: |
+    powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status | ConvertTo-Json"
+  loop: "{{ dependent_services }}"
+  register: post_rotation_status
+  changed_when: false
+
+- name: Display post-rotation service status in readable format
+  ansible.builtin.debug:
+    msg: |
+      After credential update:
+      Service: {{ item.item }}
+      Status: {{ service_status_text }}
+      Host: {{ inventory_hostname }}
+  vars:
+    service_status_code: "{{ (item.stdout | from_json).Status }}"
+    service_status_text: >-
+      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
+  loop: "{{ post_rotation_status.results }}"
+  when: item.stdout is defined
+
+- name: Check service log to verify it's working with new credentials
+  ansible.builtin.raw: |
+    powershell.exe -Command "
+    if (Test-Path 'C:\demo-service\demo-service.log') {
+      Write-Host 'Recent log entries:';
+      Get-Content 'C:\demo-service\demo-service.log' | Select-Object -Last 5
+    } else {
+      Write-Host 'Service log file not found at C:\demo-service\demo-service.log'
+    }
+    "
+  register: service_log_check
+  changed_when: false
+
+- name: Display recent service log entries
+  ansible.builtin.debug:
+    msg: "{{ service_log_check.stdout_lines }}"
+
+- name: Password rotation summary
+  ansible.builtin.debug:
+    msg:
+      - "Service account credential update completed successfully"
+      - "Service account: {{ service_account }}"
+      - "Username from Vault: {{ service_account }}"
+      - "Services updated: {{ dependent_services | join(', ') }}"
+      - "Host: {{ inventory_hostname }}"
+      - "Vault LDAP role: {{ vault_static_role }}"
+      - "Last Vault rotation: {{ last_vault_rotation }}"
