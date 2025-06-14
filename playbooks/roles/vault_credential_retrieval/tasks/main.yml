@@ -45,9 +45,10 @@
     current_username: "{{ vault_credentials.data.username }}"
     current_password: "{{ vault_credentials.data.password }}"
     last_vault_rotation: "{{ vault_credentials.data.last_vault_rotation | default('unknown') }}"
+    vault_static_role: "{{ vault_static_role }}"
 
 - name: Display credential info (username only for security)
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "Retrieved current credentials for user: {{ current_username }}"
       - "Last Vault rotation: {{ last_vault_rotation }}"

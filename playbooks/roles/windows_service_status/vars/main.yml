@@ -1,0 +1,4 @@
+# roles/windows_service_status/vars/main.yml
+---
+# Default variables for Windows service status checking
+# These can be overridden in playbooks or inventory

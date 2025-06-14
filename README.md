@@ -14,13 +14,40 @@ ansible-windows-service-management/
 ├── playbooks/                    # Main playbooks
 │   ├── test-connectivity.yml     # SSH connectivity test
 │   ├── manage-services.yml       # Windows service management
-│   ├── rotate-passwords.yml      # Vault password rotation
+│   ├── rotate-passwords.yml      # Vault password rotation (multi-play role-based)
 │   ├── requirements.yml          # Playbook collections
-│   └── roles/                    # Custom roles
-│       ├── windows_service_management/
-│       └── vault_credential_rotation/
+│   └── roles/                    # Custom roles following AAP best practices
+│       ├── windows_service_status/          # Get current service status
+│       │   ├── tasks/main.yml
+│       │   └── vars/main.yml
+│       ├── vault_credential_retrieval/      # Vault AppRole auth & credential retrieval
+│       │   ├── tasks/main.yml
+│       │   └── vars/main.yml
+│       └── windows_service_credential_update/  # Update service credentials via NSSM
+│           ├── tasks/main.yml
+│           └── vars/main.yml
 └── aap-host-variables-example.yml # Example AAP host variables
 ```
+
+## Design Pattern
+
+This repository follows Ansible best practices with a **multi-play, role-based structure** similar to proven patterns:
+
+1. **Play 1**: Target Windows hosts to get current service status
+   - Role: `windows_service_status`
+   - Connection: SSH to Windows hosts
+
+2. **Play 2**: Target localhost (execution environment) for Vault operations
+   - Role: `vault_credential_retrieval`
+   - Connection: Local (no SSH)
+   - Purpose: AppRole authentication and credential retrieval
+
+3. **Play 3**: Target Windows hosts to update credentials and restart services
+   - Role: `windows_service_credential_update`
+   - Connection: SSH to Windows hosts
+   - Variables: Passed from Play 2 via `hostvars['localhost']`
+
+This pattern ensures Vault operations run locally in the execution environment while Windows operations use SSH, avoiding connection issues and following AAP security best practices.
 
 ## Prerequisites
 
@@ -137,11 +164,19 @@ Test SSH connectivity from AAP by running the test playbook:
 
 ## Playbook Reference
 
-| Playbook | Purpose | Key Variables |
-|----------|---------|---------------|
-| `test-connectivity.yml` | Basic SSH connectivity test | None required |
-| `manage-services.yml` | Windows service management | `service_operation`, `services_list` |
-| `rotate-passwords.yml` | Vault password rotation | `vault_url`, `vault_token`, `service_account` |
+| Playbook | Purpose | Key Variables | Structure |
+|----------|---------|---------------|-----------|
+| `test-connectivity.yml` | Basic SSH connectivity test | None required | Single play |
+| `manage-services.yml` | Windows service management | `service_operation`, `services_list` | Single play |
+| `rotate-passwords.yml` | Vault password rotation | `vault_url`, `role_id`, `secret_id`, `dependent_services` | **Multi-play role-based** |
+
+### Role Breakdown
+
+| Role | Purpose | Target | Connection |
+|------|---------|--------|------------|
+| `windows_service_status` | Get current service status | Windows hosts | SSH |
+| `vault_credential_retrieval` | Vault AppRole auth & get credentials | localhost (EE) | local |
+| `windows_service_credential_update` | Update service credentials via NSSM | Windows hosts | SSH |
 
 ## AAP Job Template Examples
 
@@ -178,9 +213,11 @@ Test SSH connectivity from AAP by running the test playbook:
 - **Extra Variables**:
   ```yaml
   vault_url: "https://vault.hashicorp.local:8200"
-  service_account: "hashicorp.local\\svc-demo"
-  services_to_restart: ["DemoHelloWorldService"]
+  vault_ldap_mount_path: "ldap"  # Your Vault LDAP mount path
   vault_static_role_name: "svc_demo"  # Your Vault LDAP static role
+  dependent_services: ["DemoHelloWorldService"]  # Services to update/restart
+  role_id: "{{ vault_role_id }}"  # From Vault credential
+  secret_id: "{{ vault_secret_id }}"  # From Vault credential
   ```
 
 ## Vault Integration
