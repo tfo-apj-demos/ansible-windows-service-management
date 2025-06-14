@@ -41,11 +41,15 @@
     ca_cert: "/etc/pki/ca-trust/source/anchors/vault-ca.crt"
   register: vault_credentials
 
+- name: Debug Vault response structure
+  ansible.builtin.debug:
+    msg: "Vault response: {{ vault_credentials }}"
+
 - name: Extract current password from Vault response
   ansible.builtin.set_fact:
     current_username: "{{ vault_credentials.data.username }}"
     current_password: "{{ vault_credentials.data.password }}"
-    last_vault_rotation: "{{ vault_credentials.data.last_vault_rotation | default('unknown') }}"
+    last_vault_rotation: "{{ vault_credentials.data.last_vault_rotation }}"
     vault_static_role: "{{ vault_static_role }}"
 
 - name: Display credential info (username only for security)
