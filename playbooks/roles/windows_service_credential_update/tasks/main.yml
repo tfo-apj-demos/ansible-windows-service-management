@@ -65,7 +65,7 @@
     "@
     powershell.exe -Command $script
   vars:
-    service_account_full: "{{ service_account if ('\\\\' in service_account or '@' in service_account) else 'hashicorp.local\\\\' + service_account }}"
+    service_account_full: "{{ service_account if ('\\' in service_account or '@' in service_account) else 'hashicorp.local\\' + service_account }}"
   loop: "{{ dependent_services }}"
   register: nssm_update_result
   changed_when: true
