@@ -11,20 +11,29 @@
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     
   tasks:
-    - name: Test basic connectivity with raw command
-      ansible.builtin.raw: echo "Hello World from {{ inventory_hostname }}"
-      register: hello_output
+    - name: Test basic connectivity with hostname command
+      ansible.builtin.raw: hostname
+      register: hostname_output
       changed_when: false
       
-    - name: Display hello output
+    - name: Display hostname output
       ansible.builtin.debug:
-        msg: "{{ hello_output.stdout_lines }}"
+        msg: "Hostname: {{ hostname_output.stdout_lines }}"
         
-    - name: Get current date and time
-      ansible.builtin.raw: Get-Date
+    - name: Test PowerShell Get-Date command
+      ansible.builtin.raw: powershell.exe -Command "Get-Date"
       register: datetime_output
       changed_when: false
       
     - name: Display current date/time
       ansible.builtin.debug:
         msg: "{{ datetime_output.stdout_lines }}"
+        
+    - name: Test PowerShell environment variable
+      ansible.builtin.raw: powershell.exe -Command "$env:COMPUTERNAME"
+      register: computer_name
+      changed_when: false
+      
+    - name: Display computer name
+      ansible.builtin.debug:
+        msg: "Computer Name: {{ computer_name.stdout_lines }}"
