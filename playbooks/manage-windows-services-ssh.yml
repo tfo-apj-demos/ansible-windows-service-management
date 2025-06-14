@@ -1,14 +1,15 @@
 ---
-- name: Windows Service Management via SSH and PowerShell
-  hosts: windows_servers  # Direct group targeting
+- name: Windows Service Management via SSH and CMD/PowerShell
+  hosts: windows_servers
   gather_facts: false
   vars:
-    # SSH connection for Windows with OpenSSH and PowerShell
+    # SSH connection for Windows using CMD shell (proven working)
     ansible_connection: ssh
-    ansible_shell_type: powershell
-    ansible_ssh_shell_type: powershell
+    ansible_shell_type: cmd
+    ansible_port: 22
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     operation: "{{ service_operation | default('status') }}"
-    target_services: "{{ services_list | default([]) }}"
+    target_services: "{{ services_list | default(['DemoHelloWorldService']) }}"
     
   pre_tasks:
     - name: Validate operation parameter
@@ -22,48 +23,60 @@
       ansible.builtin.debug:
         msg: "Performing {{ operation }} operation on Windows services via SSH"
 
-    - name: Get all Windows services (when no specific services defined)
+    - name: Get service status for specific services
       ansible.builtin.raw: |
-        Get-Service | ConvertTo-Json -Depth 3
-      register: all_services_raw
-      when: target_services | length == 0 and operation in ['status', 'info']
+        powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status, StartType | ConvertTo-Json"
+      loop: "{{ target_services }}"
+      register: service_status_results
+      when: operation in ['status', 'info']
+      changed_when: false
 
-    - name: Get specific services status
-      ansible.builtin.raw: |
-        Get-Service -Name {{ target_services | join(',') }} | ConvertTo-Json -Depth 3
-      register: specific_services_raw
-      when: target_services | length > 0
-
-    - name: Display services count (all services)
+    - name: Display service status
       ansible.builtin.debug:
-        msg: "Retrieved information for all services on {{ inventory_hostname }}"
-      when: target_services | length == 0 and operation in ['status', 'info']
+        msg: "Service {{ item.item }}: {{ (item.stdout | from_json).Status }} (StartType: {{ (item.stdout | from_json).StartType }})"
+      loop: "{{ service_status_results.results }}"
+      when: 
+        - operation in ['status', 'info']
+        - service_status_results is defined
+        - item.stdout is defined
 
-    - name: Start specific services
+    - name: Start services
       ansible.builtin.raw: |
-        Start-Service -Name '{{ item }}'
-        Write-Host "Started service: {{ item }}"
+        powershell.exe -Command "Start-Service -Name '{{ item }}'; Write-Host 'Started service: {{ item }}'"
       loop: "{{ target_services }}"
-      when: operation == 'start' and target_services | length > 0
+      register: start_results
+      when: operation == 'start'
 
-    - name: Stop specific services
+    - name: Stop services
       ansible.builtin.raw: |
-        Stop-Service -Name '{{ item }}'
-        Write-Host "Stopped service: {{ item }}"
+        powershell.exe -Command "Stop-Service -Name '{{ item }}' -Force; Write-Host 'Stopped service: {{ item }}'"
       loop: "{{ target_services }}"
-      when: operation == 'stop' and target_services | length > 0
+      register: stop_results
+      when: operation == 'stop'
 
-    - name: Restart specific services
+    - name: Restart services
       ansible.builtin.raw: |
-        Restart-Service -Name '{{ item }}'
-        Write-Host "Restarted service: {{ item }}"
+        powershell.exe -Command "Restart-Service -Name '{{ item }}'; Write-Host 'Restarted service: {{ item }}'"
       loop: "{{ target_services }}"
-      when: operation == 'restart' and target_services | length > 0
+      register: restart_results
+      when: operation == 'restart'
 
-    - name: Display specific services status
+    - name: Verify service status after operation
+      ansible.builtin.raw: |
+        powershell.exe -Command "Get-Service -Name '{{ item }}' | Select-Object Name, Status | ConvertTo-Json"
+      loop: "{{ target_services }}"
+      register: post_operation_status
+      when: operation in ['start', 'stop', 'restart']
+      changed_when: false
+
+    - name: Display post-operation status
       ansible.builtin.debug:
-        msg: "Service operation completed for: {{ target_services | join(', ') }}"
-      when: target_services | length > 0
+        msg: "After {{ operation }}: {{ item.item }} is {{ (item.stdout | from_json).Status }}"
+      loop: "{{ post_operation_status.results }}"
+      when: 
+        - operation in ['start', 'stop', 'restart']
+        - post_operation_status is defined
+        - item.stdout is defined
 
   post_tasks:
     - name: Summary of operations performed
@@ -72,4 +85,4 @@
           - "Service management operation completed"
           - "Operation: {{ operation }}"
           - "Target host: {{ inventory_hostname }}"
-          - "Services processed: {{ target_services | length if target_services | length > 0 else 'all services' }}"
+          - "Services processed: {{ target_services | join(', ') }}"
