@@ -15,15 +15,14 @@
 
 - name: Display current service status in readable format
   ansible.builtin.debug:
-    msg: |
-      Current Status Check:
-      Service: {{ item.item }}
-      Status: {{ service_status_text }}
-      Host: {{ inventory_hostname }}
+    msg:
+      - "Current Status Check:"
+      - "Service: {{ item.item }}"
+      - "Status: {{ status_text }}"
+      - "Host: {{ inventory_hostname }}"
   vars:
-    service_status_code: "{{ (item.stdout | from_json).Status | int }}"
-    service_status_text: >-
-      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
+    status_code: "{{ (item.stdout | from_json).Status }}"
+    status_text: "{{ 'Running' if status_code == 4 else 'Stopped' if status_code == 1 else 'Unknown (' + (status_code | string) + ')' }}"
   loop: "{{ current_service_status.results }}"
   when: item.stdout is defined
 

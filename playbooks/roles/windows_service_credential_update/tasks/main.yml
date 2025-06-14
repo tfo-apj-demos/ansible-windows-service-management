@@ -22,12 +22,8 @@
     msg: |
       Before credential rotation:
       Service: {{ item.item }}
-      Status: {{ service_status_text }}
+      Status: {% if (item.stdout | from_json).Status == 4 %}Running{% elif (item.stdout | from_json).Status == 1 %}Stopped{% else %}Unknown ({{ (item.stdout | from_json).Status }}){% endif %}
       Host: {{ inventory_hostname }}
-  vars:
-    service_status_code: "{{ (item.stdout | from_json).Status | int }}"
-    service_status_text: >-
-      {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
   loop: "{{ pre_rotation_status.results }}"
   when: item.stdout is defined
 
@@ -45,7 +41,6 @@
     "
   loop: "{{ dependent_services }}"
   register: nssm_update_result
-  no_log: true
   changed_when: true
 
 - name: Display NSSM update results
