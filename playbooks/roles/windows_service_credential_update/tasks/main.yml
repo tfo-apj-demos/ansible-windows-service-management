@@ -25,7 +25,7 @@
       Status: {{ service_status_text }}
       Host: {{ inventory_hostname }}
   vars:
-    service_status_code: "{{ (item.stdout | from_json).Status }}"
+    service_status_code: "{{ (item.stdout | from_json).Status | int }}"
     service_status_text: >-
       {%- if service_status_code == 4 -%}Running{%- elif service_status_code == 1 -%}Stopped{%- else -%}Unknown ({{ service_status_code }}){%- endif %}
   loop: "{{ pre_rotation_status.results }}"
