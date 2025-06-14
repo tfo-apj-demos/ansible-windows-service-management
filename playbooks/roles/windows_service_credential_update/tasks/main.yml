@@ -22,11 +22,16 @@
     msg:
       - "Before credential rotation:"
       - "Service: {{ item.item }}"
-      - "Status: {{ status_display }}"
+      - "Raw Status: {{ status_raw }}"
+      - "Status: {{ status_text }}"
       - "Host: {{ inventory_hostname }}"
   vars:
-    status_int: "{{ (item.stdout | from_json).Status | int }}"
-    status_display: "{{ 'Running' if status_int == 4 else 'Stopped' if status_int == 1 else 'Unknown (' + (status_int | string) + ')' }}"
+    status_raw: "{{ (item.stdout | from_json).Status }}"
+    status_text: >-
+      {% if status_raw == 4 %}Running
+      {% elif status_raw == 1 %}Stopped
+      {% else %}Other ({{ status_raw }})
+      {% endif %}
   loop: "{{ pre_rotation_status.results }}"
   when: item.stdout is defined
 
@@ -34,9 +39,9 @@
   ansible.builtin.debug:
     msg:
       - "Service: {{ item }}"
-      - "Service Account: {{ service_account }}"
-      - "Password Length: {{ current_password | length }}"
-      - "Account has domain: {{ 'Yes' if ('\\' in service_account or '@' in service_account) else 'No - will add hashicorp.local\\' }}"
+      - "Service Account: {{ service_account | default('UNDEFINED') }}"
+      - "Password defined: {{ 'Yes' if current_password is defined else 'No' }}"
+      - "Password length: {{ current_password | default('') | length }}"
   loop: "{{ dependent_services }}"
 
 - name: Create PowerShell script for NSSM update
