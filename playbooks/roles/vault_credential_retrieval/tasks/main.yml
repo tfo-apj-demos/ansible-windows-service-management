@@ -30,7 +30,39 @@
   retries: 3
   delay: 5
 
-- name: Get current service account credentials from Vault LDAP static role
+- name: Authenticate with Vault using AppRole to get token
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/auth/approle/login"
+    method: POST
+    body_format: json
+    body:
+      role_id: "{{ role_id }}"
+      secret_id: "{{ secret_id }}"
+    validate_certs: true
+    ca_path: "/etc/pki/ca-trust/source/anchors/vault-ca.crt"
+    status_code: [200]
+  register: vault_auth_result
+
+- name: Extract Vault token from authentication response
+  ansible.builtin.set_fact:
+    vault_token: "{{ vault_auth_result.json.auth.client_token }}"
+
+- name: Rotate static role password to generate fresh credentials
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/{{ vault_ldap_mount }}/rotate-role/{{ vault_static_role }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_token }}"
+    validate_certs: true
+    ca_path: "/etc/pki/ca-trust/source/anchors/vault-ca.crt"
+    status_code: [200, 204]
+  register: vault_rotation_result
+
+- name: Display password rotation result
+  ansible.builtin.debug:
+    msg: "Password rotation completed for role: {{ vault_static_role }}"
+
+- name: Get fresh service account credentials from Vault LDAP static role
   community.hashi_vault.vault_read:
     url: "{{ vault_addr }}"
     path: "{{ vault_ldap_mount }}/static-cred/{{ vault_static_role }}"
@@ -52,8 +84,9 @@
     last_vault_rotation: "{{ vault_credentials.data.data.last_vault_rotation }}"
     vault_static_role: "{{ vault_static_role }}"
 
-- name: Display credential info (username only for security)
+- name: Display fresh credential info (username only for security)
   ansible.builtin.debug:
     msg:
-      - "Retrieved current credentials for user: {{ current_username }}"
-      - "Last Vault rotation: {{ last_vault_rotation }}"
+      - "Retrieved fresh credentials after rotation for user: {{ current_username }}"
+      - "New rotation timestamp: {{ last_vault_rotation }}"
+      - "Rotation period has been reset"
